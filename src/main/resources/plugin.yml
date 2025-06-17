@@ -1,0 +1,25 @@
+name: CoreEconomy
+version: 1.3.0
+main: ru.corearchitect.coreeconomy.CoreEconomy
+api-version: '1.20'
+author: CoreArchitect
+description: Core economy plugin for high-load servers with API and logging.
+load: STARTUP
+depend: [PlaceholderAPI]
+loadbefore: [PromoCodes]
+permissions:
+  coreeconomy.command.balance:
+    description: Allows usage of the /eco balance command.
+    default: true
+  coreeconomy.command.pay:
+    description: Allows usage of the /eco pay command.
+    default: true
+  coreeconomy.command.balancetop:
+    description: Allows usage of the /eco baltop command.
+    default: true
+  coreeconomy.command.scoreboardtoggle:
+    description: Allows usage of the /eco sbtoggle command.
+    default: true
+  coreeconomy.command.admin:
+    description: Allows usage of all /ecoadmin commands.
+    default: op

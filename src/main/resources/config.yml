@@ -1,0 +1,33 @@
+# Основной язык плагина.
+language: "ru"
+
+# Настройка основной команды для игроков.
+player-command:
+  name: "eco"
+  aliases:
+    - "money"
+
+# Настройка основной команды для администраторов.
+admin-command:
+  name: "ecoadmin"
+  aliases:
+    - "ecoadm"
+
+# Валютный символ
+currency-symbol: "₽"
+
+# Настройки скорборда по умолчанию
+scoreboard:
+  enabled-by-default: true
+
+# Настройки таблицы лидеров
+leaderboard:
+  # Как часто (в минутах) обновлять кеш топа игроков.
+  update-interval-minutes: 1
+  # Количество игроков, которое будет кешироваться и отображаться в /baltop
+  size: 10
+
+# Настройки хранения данных
+data-storage:
+  # Как часто (в минутах) автоматически сохранять данные всех онлайн-игроков.
+  autosave-interval-minutes: 10

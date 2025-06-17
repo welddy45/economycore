@@ -1,0 +1,38 @@
+prefix: "&8[&6CoreEco&8] &r"
+player-not-found: "&cИгрок не найден или не в сети."
+player-does-not-exist: "&cИгрок с таким именем никогда не играл на сервере или не имеет счета."
+insufficient-funds: "&cУ вас недостаточно средств."
+cannot-pay-self: "&cВы не можете заплатить самому себе."
+invalid-amount: "&cУказана неверная сумма."
+no-permission: "&cУ вас нет прав для выполнения этой команды."
+account-frozen: "&cВаш счет заморожен. Вы не можете выполнять эту операцию."
+account-frozen-other: "&cСчет игрока {player} заморожен."
+
+balance: "&7Ваш баланс: &e{balance}{symbol}"
+balance-other: "&7Баланс игрока &a{player}&7: &e{balance}{symbol}"
+
+payment-sent: "&7Вы отправили &e{amount}{symbol} &7игроку &a{recipient}&7."
+payment-received: "&7Вы получили &e{amount}{symbol} &7от игрока &a{sender}&7."
+
+balancetop-header: "&6--- Топ {size} богатейших игроков ---"
+balancetop-entry: "&e{rank}. &a{player}&7: &e{balance}{symbol}"
+balancetop-footer: "&6--------------------------------"
+balancetop-empty: "&7Список лидеров пока пуст."
+
+scoreboard:
+  title: "&6&lБаланс"
+  line: "&e{balance} &f{symbol}"
+  toggle-on: "&7Скорборд включен."
+  toggle-off: "&7Скорборборд выключен."
+
+command:
+  player-usage: "&cИспользование: /{command} <balance|pay|baltop|sbtoggle>"
+  admin-usage: "&cИспользование: /{command} <set|add|remove|freeze|unfreeze|reload> <игрок> [сумма]"
+
+admin:
+  reload-success: "&aКонфигурация и данные успешно перезагружены. Для изменения имен команд требуется перезапуск сервера."
+  balance-set: "&7Вы установили баланс игрока &a{player} &7на &e{amount}{symbol}&7."
+  balance-added: "&7Вы добавили &e{amount}{symbol} &7на баланс игрока &a{player}&7."
+  balance-removed: "&7Вы сняли &e{amount}{symbol} &7с баланса игрока &a{player}&7."
+  account-frozen-success: "&7Вы заморозили счет игрока &a{player}&7."
+  account-unfrozen-success: "&7Вы разморозили счет игрока &a{player}&7."
