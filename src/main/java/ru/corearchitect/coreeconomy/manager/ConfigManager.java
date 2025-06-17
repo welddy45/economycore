@@ -107,4 +107,8 @@ public class ConfigManager {
     public boolean isScoreboardEnabledByDefault() {
         return mainConfig.getBoolean("scoreboard.enabled-by-default", true);
     }
+
+    public double getCommissionPercentage() {
+        return mainConfig.getDouble("commission.percentage", 0.0);
+    }
 }

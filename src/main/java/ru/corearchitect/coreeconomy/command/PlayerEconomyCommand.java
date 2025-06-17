@@ -148,7 +148,20 @@ public class PlayerEconomyCommand extends Command {
             return;
         }
 
-        economyManager.isFrozen(player.getUniqueId()).thenCompose(isFrozen -> {
+        double commissionPercentage = configManager.getCommissionPercentage();
+        BigDecimal commissionAmount = amount.multiply(BigDecimal.valueOf(commissionPercentage / 100.0)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalCost = amount.add(commissionAmount);
+
+        economyManager.getBalance(player.getUniqueId()).thenCompose(playerBalance -> {
+            if (playerBalance.compareTo(totalCost) < 0) {
+                String percentageString = String.valueOf(commissionPercentage);
+                player.sendMessage(configManager.getPrefixedMessage("insufficient-funds-for-commission")
+                        .replace("{commission}", percentageString));
+                return CompletableFuture.completedFuture(null);
+            }
+            return economyManager.isFrozen(player.getUniqueId());
+        }).thenCompose(isFrozen -> {
+            if (isFrozen == null) return CompletableFuture.completedFuture(null);
             if (isFrozen) {
                 player.sendMessage(configManager.getPrefixedMessage("account-frozen"));
                 return CompletableFuture.completedFuture(null);
@@ -160,20 +173,28 @@ public class PlayerEconomyCommand extends Command {
                 player.sendMessage(configManager.getPrefixedMessage("account-frozen-other").replace("{player}", recipient.getName()));
                 return CompletableFuture.completedFuture(null);
             }
-            return economyManager.withdraw(player.getUniqueId(), amount);
+            return economyManager.withdraw(player.getUniqueId(), totalCost);
         }).thenAccept(success -> {
             if (success == null) return;
             if (success) {
                 economyManager.deposit(recipient.getUniqueId(), amount);
                 String formattedAmount = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-                logger.log(String.format("[PAY] %s (%s) -> %s (%s) | Amount: %s",
-                        player.getName(), player.getUniqueId(), recipient.getName(), recipient.getUniqueId(), formattedAmount));
+                logger.log(String.format("[PAY] %s -> %s | Amount: %s | Commission: %s | Total: %s",
+                        player.getName(), recipient.getName(), formattedAmount, commissionAmount.toPlainString(), totalCost.toPlainString()));
 
-                player.sendMessage(configManager.getPrefixedMessage("payment-sent")
-                        .replace("{amount}", formattedAmount)
-                        .replace("{recipient}", recipient.getName())
-                        .replace("{symbol}", configManager.getCurrencySymbol()));
+                if (commissionAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    player.sendMessage(configManager.getPrefixedMessage("payment-sent-with-commission")
+                            .replace("{amount}", formattedAmount)
+                            .replace("{recipient}", recipient.getName())
+                            .replace("{commission_amount}", commissionAmount.toPlainString())
+                            .replace("{symbol}", configManager.getCurrencySymbol()));
+                } else {
+                    player.sendMessage(configManager.getPrefixedMessage("payment-sent")
+                            .replace("{amount}", formattedAmount)
+                            .replace("{recipient}", recipient.getName())
+                            .replace("{symbol}", configManager.getCurrencySymbol()));
+                }
 
                 recipient.sendMessage(configManager.getPrefixedMessage("payment-received")
                         .replace("{amount}", formattedAmount)
