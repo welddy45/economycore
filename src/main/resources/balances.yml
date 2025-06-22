@@ -1,3 +1,6 @@
+economy_stats:
+  total_commission: '0.0'
+
 balances:
 
 frozen_accounts:

@@ -29,7 +29,7 @@ scoreboard:
 
 command:
   player-usage: "&cИспользование: /{command} <balance|pay|baltop|sbtoggle>"
-  admin-usage: "&cИспользование: /{command} <set|add|remove|freeze|unfreeze|reload> <игрок> [сумма]"
+  admin-usage: "&cИспользование: /{command} <set|add|remove|freeze|unfreeze|reload|total> <игрок> [сумма]"
 
 admin:
   reload-success: "&aКонфигурация и данные успешно перезагружены. Для изменения имен команд требуется перезапуск сервера."
@@ -38,3 +38,4 @@ admin:
   balance-removed: "&7Вы сняли &e{amount}{symbol} &7с баланса игрока &a{player}&7."
   account-frozen-success: "&7Вы заморозили счет игрока &a{player}&7."
   account-unfrozen-success: "&7Вы разморозили счет игрока &a{player}&7."
+  total-balance: "&7Общий баланс на сервере: &e{total}{symbol}"

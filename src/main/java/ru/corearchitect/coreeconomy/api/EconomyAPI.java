@@ -13,4 +13,6 @@ public interface EconomyAPI {
     CompletableFuture<Boolean> isFrozen(UUID playerUUID);
     CompletableFuture<Void> setFrozen(UUID playerUUID, boolean frozen);
     String getCurrencySymbol();
+    CompletableFuture<BigDecimal> getTotalServerBalance();
+    CompletableFuture<BigDecimal> getTotalCommission();
 }

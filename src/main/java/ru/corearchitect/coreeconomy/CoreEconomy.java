@@ -1,11 +1,9 @@
 package ru.corearchitect.coreeconomy;
 
-import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import ru.corearchitect.coreeconomy.api.EconomyAPI;
-import ru.corearchitect.coreeconomy.integrations.EconomyPlaceholderExpansion;
 import ru.corearchitect.coreeconomy.listener.PlayerConnectionListener;
 import ru.corearchitect.coreeconomy.manager.*;
 
@@ -36,7 +34,6 @@ public final class CoreEconomy extends JavaPlugin {
         registerAPI();
         registerCommands();
         registerListeners();
-        registerIntegrations();
 
         this.scoreboardManager.startUpdateTask();
         this.leaderboardManager.startUpdateTask();
@@ -75,15 +72,9 @@ public final class CoreEconomy extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerConnectionListener(this), this);
     }
 
-    private void registerIntegrations() {
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new EconomyPlaceholderExpansion(this).register();
-        }
-    }
-
     private void startAutosaveTask() {
         long interval = configManager.getAutosaveInterval() * 20L * 60L;
-        this.autosaveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(this, this.dataManager::saveDataAsync, interval, interval);
+        this.autosaveTask = getServer().getScheduler().runTaskTimerAsynchronously(this, this.dataManager::saveDataAsync, interval, interval);
     }
 
     public static CoreEconomy getInstance() {

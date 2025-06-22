@@ -4,7 +4,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 import ru.corearchitect.coreeconomy.CoreEconomy;
 import ru.corearchitect.coreeconomy.manager.ConfigManager;
@@ -13,6 +12,7 @@ import ru.corearchitect.coreeconomy.manager.EconomyManager;
 import ru.corearchitect.coreeconomy.manager.TransactionLogger;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,9 +53,13 @@ public class EconomyAdminCommand extends Command {
 
         String subCommand = args[0].toLowerCase();
 
-        if (subCommand.equals("reload")) {
-            handleReload(sender);
-            return true;
+        switch (subCommand) {
+            case "reload":
+                handleReload(sender);
+                return true;
+            case "total":
+                handleTotal(sender);
+                return true;
         }
 
         if (args.length < 2) {
@@ -100,6 +104,15 @@ public class EconomyAdminCommand extends Command {
         dataManager.loadData();
         plugin.getLeaderboardManager().updateLeaderboard();
         sender.sendMessage(configManager.getPrefixedMessage("admin.reload-success"));
+    }
+
+    private void handleTotal(CommandSender sender) {
+        economyManager.getTotalServerBalance().thenAccept(totalBalance -> {
+            String formattedTotal = totalBalance.setScale(2, RoundingMode.HALF_UP).toPlainString();
+            sender.sendMessage(configManager.getPrefixedMessage("admin.total-balance")
+                    .replace("{total}", formattedTotal)
+                    .replace("{symbol}", configManager.getCurrencySymbol()));
+        });
     }
 
     private void handleBalanceModification(CommandSender sender, String type, OfflinePlayer target, String[] args, String commandLabel) {
@@ -163,9 +176,9 @@ public class EconomyAdminCommand extends Command {
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
         if (!sender.hasPermission(this.getPermission())) return Collections.emptyList();
         if (args.length == 1) {
-            return StringUtil.copyPartialMatches(args[0], Arrays.asList("set", "add", "remove", "freeze", "unfreeze", "reload"), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[0], Arrays.asList("set", "add", "remove", "freeze", "unfreeze", "reload", "total"), new ArrayList<>());
         }
-        if (args.length == 2 && !args[0].equalsIgnoreCase("reload")) {
+        if (args.length == 2 && !args[0].equalsIgnoreCase("reload") && !args[0].equalsIgnoreCase("total")) {
             List<String> playerNames = new ArrayList<>();
             Bukkit.getOnlinePlayers().forEach(p -> playerNames.add(p.getName()));
             return StringUtil.copyPartialMatches(args[1], playerNames, new ArrayList<>());

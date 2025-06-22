@@ -178,6 +178,7 @@ public class PlayerEconomyCommand extends Command {
             if (success == null) return;
             if (success) {
                 economyManager.deposit(recipient.getUniqueId(), amount);
+                economyManager.addCommission(commissionAmount);
                 String formattedAmount = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
                 logger.log(String.format("[PAY] %s -> %s | Amount: %s | Commission: %s | Total: %s",

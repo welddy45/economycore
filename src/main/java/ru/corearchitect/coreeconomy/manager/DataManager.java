@@ -20,6 +20,7 @@ public class DataManager {
     private final Map<UUID, BigDecimal> balances = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> frozenAccounts = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> scoreboardStates = new ConcurrentHashMap<>();
+    private BigDecimal totalCommission = BigDecimal.ZERO;
 
     public DataManager(CoreEconomy plugin) {
         this.plugin = plugin;
@@ -29,23 +30,15 @@ public class DataManager {
 
     public synchronized void loadData() {
         if (!dataFile.exists()) {
-            try {
-                plugin.saveResource("balances.yml", false);
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("balances.yml template not found, creating a new empty file.");
-                try {
-                    dataFile.createNewFile();
-                } catch (IOException ioException) {
-                    plugin.getLogger().severe("Could not create balances.yml!");
-                    ioException.printStackTrace();
-                }
-            }
+            plugin.saveResource("balances.yml", false);
         }
 
         FileConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
         balances.clear();
         frozenAccounts.clear();
         scoreboardStates.clear();
+
+        this.totalCommission = new BigDecimal(config.getString("economy_stats.total_commission", "0.0"));
 
         ConfigurationSection balancesSection = config.getConfigurationSection("balances");
         if (balancesSection != null) {
@@ -63,7 +56,7 @@ public class DataManager {
             for (String key : frozenSection.getKeys(false)) {
                 try {
                     UUID uuid = UUID.fromString(key);
-                    boolean isFrozen = frozenSection.getBoolean(key + ".frozen", false);
+                    boolean isFrozen = frozenSection.getBoolean(key, false);
                     if (isFrozen) {
                         frozenAccounts.put(uuid, true);
                     }
@@ -84,21 +77,24 @@ public class DataManager {
 
     private FileConfiguration prepareConfigForSave() {
         FileConfiguration config = new YamlConfiguration();
+        config.set("economy_stats.total_commission", totalCommission.toPlainString());
         balances.forEach((uuid, balance) -> config.set("balances." + uuid.toString(), balance.toPlainString()));
         frozenAccounts.forEach((uuid, isFrozen) -> {
             if (isFrozen) {
-                config.set("frozen_accounts." + uuid.toString() + ".frozen", true);
+                config.set("frozen_accounts." + uuid.toString(), true);
             }
         });
         scoreboardStates.forEach((uuid, isEnabled) -> config.set("scoreboard_states." + uuid.toString(), isEnabled));
         return config;
     }
 
-    public synchronized void saveDataAsync() {
+    public void saveDataAsync() {
         FileConfiguration configToSave = prepareConfigForSave();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                configToSave.save(dataFile);
+                synchronized (this) {
+                    configToSave.save(dataFile);
+                }
             } catch (IOException e) {
                 plugin.getLogger().severe("Could not save data to balances.yml during autosave!");
                 e.printStackTrace();
@@ -154,5 +150,17 @@ public class DataManager {
 
     public Map<UUID, BigDecimal> getAllBalances() {
         return new ConcurrentHashMap<>(balances);
+    }
+
+    public synchronized void addCommission(BigDecimal amount) {
+        this.totalCommission = this.totalCommission.add(amount);
+    }
+
+    public BigDecimal getTotalCommission() {
+        return totalCommission;
+    }
+
+    public BigDecimal calculateTotalBalance() {
+        return balances.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
