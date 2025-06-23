@@ -3,13 +3,16 @@ package ru.corearchitect.coreeconomy.manager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.*;
 import ru.corearchitect.coreeconomy.CoreEconomy;
+import ru.corearchitect.coreeconomy.util.NumberFormatter;
 
-import java.math.RoundingMode;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -72,7 +75,7 @@ public class ScoreboardManager {
 
     private void updateScoreboard(Player player) {
         Scoreboard board = player.getScoreboard();
-        if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
+        if (board == Bukkit.getScoreboardManager().getMainScoreboard() || board.getObjective("CoreEcoSidebar") == null) {
             board = Bukkit.getScoreboardManager().getNewScoreboard();
         }
 
@@ -87,17 +90,27 @@ public class ScoreboardManager {
         final Objective finalObjective = objective;
 
         plugin.getEconomyManager().getBalance(player.getUniqueId()).thenAcceptAsync(balance -> {
-            String balanceText = balance.setScale(2, RoundingMode.HALF_UP).toPlainString();
+            String balanceText = NumberFormatter.format(balance);
             String symbol = plugin.getConfigManager().getCurrencySymbol();
-            String lineText = plugin.getConfigManager().getScoreboardLineFormat()
-                    .replace("{balance}", balanceText)
-                    .replace("{symbol}", symbol);
+            List<String> lines = plugin.getConfigManager().getScoreboardLines();
 
             Bukkit.getScheduler().runTask(plugin, () -> {
                 for (String entry : finalBoard.getEntries()) {
                     finalBoard.resetScores(entry);
                 }
-                finalObjective.getScore(lineText).setScore(1);
+
+                int score = lines.size();
+                for (int i = 0; i < lines.size(); i++) {
+                    String line = lines.get(i)
+                            .replace("{player}", player.getName())
+                            .replace("{balance}", balanceText)
+                            .replace("{symbol}", symbol);
+
+                    String uniqueEntry = line + String.join("", Collections.nCopies(i, ChatColor.RESET.toString()));
+
+                    finalObjective.getScore(uniqueEntry).setScore(score--);
+                }
+
                 player.setScoreboard(finalBoard);
             });
         });

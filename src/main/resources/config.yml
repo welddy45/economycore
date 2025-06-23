@@ -3,18 +3,18 @@ language: "ru"
 
 # Настройка основной команды для игроков.
 player-command:
-  name: "eco"
+  name: "edu"
   aliases:
     - "money"
 
 # Настройка основной команды для администраторов.
 admin-command:
-  name: "ecoadmin"
+  name: "eduadmin"
   aliases:
-    - "ecoadm"
+    - "eduadm"
 
 # Валютный символ
-currency-symbol: "₽"
+currency-symbol: "EDU"
 
 # Настройки комиссии при переводе средств (/eco pay)
 commission:
@@ -36,4 +36,4 @@ leaderboard:
 # Настройки хранения данных
 data-storage:
   # Как часто (в минутах) автоматически сохранять данные всех онлайн-игроков.
-  autosave-interval-minutes: 10
+  autosave-interval-minutes: 1

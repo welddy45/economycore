@@ -9,23 +9,29 @@ no-permission: "&cУ вас нет прав для выполнения этой
 account-frozen: "&cВаш счет заморожен. Вы не можете выполнять эту операцию."
 account-frozen-other: "&cСчет игрока {player} заморожен."
 
-balance: "&7Ваш баланс: &e{balance}{symbol}"
-balance-other: "&7Баланс игрока &a{player}&7: &e{balance}{symbol}"
+balance: "&7Ваш баланс: &e{balance }{symbol}"
+balance-other: "&7Баланс игрока &a{player}&7: &e{balance} {symbol}"
 
 payment-sent: "&7Вы отправили &e{amount}{symbol} &7игроку &a{recipient}&7."
-payment-sent-with-commission: "&7Вы отправили &e{amount}{symbol} &7игроку &a{recipient}&7. Комиссия составила &c{commission_amount}{symbol}&7."
-payment-received: "&7Вы получили &e{amount}{symbol} &7от игрока &a{sender}&7."
+payment-sent-with-commission: "&7Вы отправили &e{amount} {symbol} &7игроку &a{recipient}&7. Комиссия составила &c{commission_amount} {symbol}&7."
+payment-received: "&7Вы получили &e{amount} {symbol} &7от игрока &a{sender}&7."
 
 balancetop-header: "&6--- Топ {size} богатейших игроков ---"
-balancetop-entry: "&e{rank}. &a{player}&7: &e{balance}{symbol}"
+balancetop-entry: "&e{rank}. &a{player}&7: &e{balance} {symbol}"
 balancetop-footer: "&6--------------------------------"
 balancetop-empty: "&7Список лидеров пока пуст."
 
 scoreboard:
-  title: "&6&lБаланс"
-  line: "&e{balance} &f{symbol}"
+  title: "&6🔥 &e&lVibeRush &6🔥"
   toggle-on: "&7Скорборд включен."
   toggle-off: "&7Скорборборд выключен."
+  lines:
+    - "&7&m------------------&r"
+    - "&fИгрок: &e{player}"
+    - " "
+    - "&fБаланс:"
+    - "&e{balance} {symbol}"
+    - "&7&m------------------"
 
 command:
   player-usage: "&cИспользование: /{command} <balance|pay|baltop|sbtoggle>"
@@ -38,4 +44,4 @@ admin:
   balance-removed: "&7Вы сняли &e{amount}{symbol} &7с баланса игрока &a{player}&7."
   account-frozen-success: "&7Вы заморозили счет игрока &a{player}&7."
   account-unfrozen-success: "&7Вы разморозили счет игрока &a{player}&7."
-  total-balance: "&7Общий баланс на сервере: &e{total}{symbol}"
+  total-balance: "&7Общий баланс на сервере: &e{total} {symbol}"

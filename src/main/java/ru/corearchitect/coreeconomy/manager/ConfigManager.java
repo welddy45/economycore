@@ -5,10 +5,11 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import ru.corearchitect.coreeconomy.CoreEconomy;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ConfigManager {
 
@@ -30,26 +31,28 @@ public class ConfigManager {
         plugin.saveDefaultConfig();
         mainConfig = plugin.getConfig();
 
-        String lang = mainConfig.getString("language", "en");
+        String lang = mainConfig.getString("language", "ru");
         File messagesFile = new File(plugin.getDataFolder(), "messages_" + lang + ".yml");
 
         if (!messagesFile.exists()) {
             plugin.saveResource("messages_" + lang + ".yml", false);
         }
 
-        if (!messagesFile.exists()) {
-            lang = "en";
-            messagesFile = new File(plugin.getDataFolder(), "messages_" + lang + ".yml");
-            if (!messagesFile.exists()) {
-                plugin.saveResource("messages_en.yml", false);
-            }
+        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(messagesFile), StandardCharsets.UTF_8)) {
+            messagesConfig = YamlConfiguration.loadConfiguration(reader);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not load messages file with UTF-8 encoding: " + messagesFile.getName());
+            e.printStackTrace();
+            messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
         }
 
-        messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
-
-        InputStream defaultStream = plugin.getResource("messages_" + lang + ".yml");
-        if (defaultStream != null) {
-            messagesConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream)));
+        try (InputStream defaultStream = plugin.getResource("messages_" + lang + ".yml")) {
+            if (defaultStream != null) {
+                messagesConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream, StandardCharsets.UTF_8)));
+            }
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not load default messages resource with UTF-8 encoding.");
+            e.printStackTrace();
         }
     }
 
@@ -65,15 +68,21 @@ public class ConfigManager {
     }
 
     public String getCurrencySymbol() {
-        return mainConfig.getString("currency-symbol", "$");
+        return mainConfig.getString("currency-symbol", "₽");
     }
 
     public String getScoreboardTitle() {
         return getMessage("scoreboard.title");
     }
 
-    public String getScoreboardLineFormat() {
-        return getMessage("scoreboard.line");
+    public List<String> getScoreboardLines() {
+        List<String> lines = messagesConfig.getStringList("scoreboard.lines");
+        if (lines.isEmpty()) {
+            return Collections.singletonList("&cScoreboard format not found!");
+        }
+        return lines.stream()
+                .map(line -> ChatColor.translateAlternateColorCodes('&', line))
+                .collect(Collectors.toList());
     }
 
     public String getPlayerCommandName() {

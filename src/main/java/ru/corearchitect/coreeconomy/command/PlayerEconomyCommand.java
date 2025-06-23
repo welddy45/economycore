@@ -10,16 +10,15 @@ import ru.corearchitect.coreeconomy.CoreEconomy;
 import ru.corearchitect.coreeconomy.manager.ConfigManager;
 import ru.corearchitect.coreeconomy.manager.EconomyManager;
 import ru.corearchitect.coreeconomy.manager.LeaderboardManager;
-import ru.corearchitect.coreeconomy.manager.TransactionLogger;
 import ru.corearchitect.coreeconomy.model.LeaderboardEntry;
+import ru.corearchitect.coreeconomy.model.TransactionResult;
+import ru.corearchitect.coreeconomy.util.NumberFormatter;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PlayerEconomyCommand extends Command {
@@ -27,7 +26,6 @@ public class PlayerEconomyCommand extends Command {
     private final CoreEconomy plugin;
     private final EconomyManager economyManager;
     private final ConfigManager configManager;
-    private final TransactionLogger logger;
     private final LeaderboardManager leaderboardManager;
 
     public PlayerEconomyCommand(CoreEconomy plugin) {
@@ -35,7 +33,6 @@ public class PlayerEconomyCommand extends Command {
         this.plugin = plugin;
         this.economyManager = plugin.getEconomyManager();
         this.configManager = plugin.getConfigManager();
-        this.logger = plugin.getTransactionLogger();
         this.leaderboardManager = plugin.getLeaderboardManager();
 
         this.setAliases(plugin.getConfigManager().getPlayerCommandAliases());
@@ -87,7 +84,7 @@ public class PlayerEconomyCommand extends Command {
             }
             Player player = (Player) sender;
             economyManager.getBalance(player.getUniqueId()).thenAccept(balance -> {
-                String formattedBalance = balance.setScale(2, RoundingMode.HALF_UP).toPlainString();
+                String formattedBalance = NumberFormatter.format(balance);
                 player.sendMessage(configManager.getPrefixedMessage("balance")
                         .replace("{balance}", formattedBalance)
                         .replace("{symbol}", configManager.getCurrencySymbol()));
@@ -100,7 +97,7 @@ public class PlayerEconomyCommand extends Command {
                     return;
                 }
                 economyManager.getBalance(target.getUniqueId()).thenAccept(balance -> {
-                    String formattedBalance = balance.setScale(2, RoundingMode.HALF_UP).toPlainString();
+                    String formattedBalance = NumberFormatter.format(balance);
                     sender.sendMessage(configManager.getPrefixedMessage("balance-other")
                             .replace("{player}", target.getName())
                             .replace("{balance}", formattedBalance)
@@ -136,75 +133,47 @@ public class PlayerEconomyCommand extends Command {
 
         BigDecimal amount;
         try {
-            amount = new BigDecimal(args[2]);
+            amount = new BigDecimal(args[2].replace(',', '.'));
             if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             player.sendMessage(configManager.getPrefixedMessage("invalid-amount"));
             return;
         }
 
-        if (player.getUniqueId().equals(recipient.getUniqueId())) {
-            player.sendMessage(configManager.getPrefixedMessage("cannot-pay-self"));
-            return;
-        }
+        final BigDecimal finalAmount = amount;
+        economyManager.transfer(player.getUniqueId(), recipient.getUniqueId(), amount).thenAccept(result -> {
+            handleTransactionResult(player, recipient, finalAmount, result);
+        });
+    }
 
-        double commissionPercentage = configManager.getCommissionPercentage();
-        BigDecimal commissionAmount = amount.multiply(BigDecimal.valueOf(commissionPercentage / 100.0)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal totalCost = amount.add(commissionAmount);
-
-        economyManager.getBalance(player.getUniqueId()).thenCompose(playerBalance -> {
-            if (playerBalance.compareTo(totalCost) < 0) {
-                String percentageString = String.valueOf(commissionPercentage);
-                player.sendMessage(configManager.getPrefixedMessage("insufficient-funds-for-commission")
-                        .replace("{commission}", percentageString));
-                return CompletableFuture.completedFuture(null);
-            }
-            return economyManager.isFrozen(player.getUniqueId());
-        }).thenCompose(isFrozen -> {
-            if (isFrozen == null) return CompletableFuture.completedFuture(null);
-            if (isFrozen) {
-                player.sendMessage(configManager.getPrefixedMessage("account-frozen"));
-                return CompletableFuture.completedFuture(null);
-            }
-            return economyManager.isFrozen(recipient.getUniqueId());
-        }).thenCompose(isRecipientFrozen -> {
-            if (isRecipientFrozen == null) return CompletableFuture.completedFuture(null);
-            if (isRecipientFrozen) {
-                player.sendMessage(configManager.getPrefixedMessage("account-frozen-other").replace("{player}", recipient.getName()));
-                return CompletableFuture.completedFuture(null);
-            }
-            return economyManager.withdraw(player.getUniqueId(), totalCost);
-        }).thenAccept(success -> {
-            if (success == null) return;
-            if (success) {
-                economyManager.deposit(recipient.getUniqueId(), amount);
-                economyManager.addCommission(commissionAmount);
-                String formattedAmount = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
-
-                logger.log(String.format("[PAY] %s -> %s | Amount: %s | Commission: %s | Total: %s",
-                        player.getName(), recipient.getName(), formattedAmount, commissionAmount.toPlainString(), totalCost.toPlainString()));
-
-                if (commissionAmount.compareTo(BigDecimal.ZERO) > 0) {
-                    player.sendMessage(configManager.getPrefixedMessage("payment-sent-with-commission")
-                            .replace("{amount}", formattedAmount)
-                            .replace("{recipient}", recipient.getName())
-                            .replace("{commission_amount}", commissionAmount.toPlainString())
-                            .replace("{symbol}", configManager.getCurrencySymbol()));
-                } else {
-                    player.sendMessage(configManager.getPrefixedMessage("payment-sent")
-                            .replace("{amount}", formattedAmount)
-                            .replace("{recipient}", recipient.getName())
-                            .replace("{symbol}", configManager.getCurrencySymbol()));
-                }
+    private void handleTransactionResult(Player sender, Player recipient, BigDecimal amount, TransactionResult result) {
+        String formattedAmount = NumberFormatter.format(amount);
+        switch (result) {
+            case SUCCESS:
+                double commissionPercentage = configManager.getCommissionPercentage();
+                sender.sendMessage(configManager.getPrefixedMessage("payment-sent")
+                        .replace("{amount}", formattedAmount)
+                        .replace("{recipient}", recipient.getName())
+                        .replace("{symbol}", configManager.getCurrencySymbol()));
 
                 recipient.sendMessage(configManager.getPrefixedMessage("payment-received")
                         .replace("{amount}", formattedAmount)
-                        .replace("{sender}", player.getName())
+                        .replace("{sender}", sender.getName())
                         .replace("{symbol}", configManager.getCurrencySymbol()));
-            } else {
-                player.sendMessage(configManager.getPrefixedMessage("insufficient-funds"));
-            }
-        });
+                break;
+            case INSUFFICIENT_FUNDS:
+                sender.sendMessage(configManager.getPrefixedMessage("insufficient-funds"));
+                break;
+            case SENDER_FROZEN:
+                sender.sendMessage(configManager.getPrefixedMessage("account-frozen"));
+                break;
+            case RECIPIENT_FROZEN:
+                sender.sendMessage(configManager.getPrefixedMessage("account-frozen-other").replace("{player}", recipient.getName()));
+                break;
+            case CANNOT_PAY_SELF:
+                sender.sendMessage(configManager.getPrefixedMessage("cannot-pay-self"));
+                break;
+        }
     }
 
     private void handleBalanceTop(CommandSender sender) {
@@ -225,11 +194,11 @@ public class PlayerEconomyCommand extends Command {
 
         AtomicInteger rank = new AtomicInteger(1);
         topPlayers.forEach(entry -> {
-            String balance = entry.getBalance().setScale(2, RoundingMode.HALF_UP).toPlainString();
+            String formattedBalance = NumberFormatter.format(entry.getBalance());
             String message = configManager.getMessage("balancetop-entry")
                     .replace("{rank}", String.valueOf(rank.getAndIncrement()))
                     .replace("{player}", entry.getName())
-                    .replace("{balance}", balance)
+                    .replace("{balance}", formattedBalance)
                     .replace("{symbol}", configManager.getCurrencySymbol());
             sender.sendMessage(message);
         });

@@ -10,9 +10,9 @@ import ru.corearchitect.coreeconomy.manager.ConfigManager;
 import ru.corearchitect.coreeconomy.manager.DataManager;
 import ru.corearchitect.coreeconomy.manager.EconomyManager;
 import ru.corearchitect.coreeconomy.manager.TransactionLogger;
+import ru.corearchitect.coreeconomy.util.NumberFormatter;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,7 +108,7 @@ public class EconomyAdminCommand extends Command {
 
     private void handleTotal(CommandSender sender) {
         economyManager.getTotalServerBalance().thenAccept(totalBalance -> {
-            String formattedTotal = totalBalance.setScale(2, RoundingMode.HALF_UP).toPlainString();
+            String formattedTotal = NumberFormatter.format(totalBalance);
             sender.sendMessage(configManager.getPrefixedMessage("admin.total-balance")
                     .replace("{total}", formattedTotal)
                     .replace("{symbol}", configManager.getCurrencySymbol()));
@@ -123,7 +123,7 @@ public class EconomyAdminCommand extends Command {
 
         BigDecimal amount;
         try {
-            amount = new BigDecimal(args[2]);
+            amount = new BigDecimal(args[2].replace(',', '.'));
             if (amount.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             sender.sendMessage(configManager.getPrefixedMessage("invalid-amount"));
@@ -152,12 +152,14 @@ public class EconomyAdminCommand extends Command {
                 return;
         }
 
+        String formattedAmount = NumberFormatter.format(amount);
+
         logger.log(String.format("[%s] Admin: %s | Target: %s (%s) | Amount: %s",
-                logType, sender.getName(), target.getName(), target.getUniqueId(), amount.toPlainString()));
+                logType, sender.getName(), target.getName(), target.getUniqueId(), formattedAmount));
 
         sender.sendMessage(configManager.getPrefixedMessage(messagePath)
                 .replace("{player}", target.getName())
-                .replace("{amount}", amount.toPlainString())
+                .replace("{amount}", formattedAmount)
                 .replace("{symbol}", configManager.getCurrencySymbol()));
     }
 

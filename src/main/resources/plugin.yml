@@ -1,5 +1,5 @@
 name: CoreEconomy
-version: 1.4.0
+version: 1.6.0
 main: ru.corearchitect.coreeconomy.CoreEconomy
 api-version: '1.20'
 author: CoreArchitect
