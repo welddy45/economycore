@@ -7,19 +7,20 @@ import java.util.Locale;
 
 public final class NumberFormatter {
 
-    private static final DecimalFormat FORMAT;
-
-    static {
+    private static final ThreadLocal<DecimalFormat> FORMATTER = ThreadLocal.withInitial(() -> {
         DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.GERMAN);
         symbols.setGroupingSeparator('.');
         symbols.setDecimalSeparator(',');
-        FORMAT = new DecimalFormat("#,##0.00", symbols);
-    }
+        return new DecimalFormat("#,##0.00", symbols);
+    });
 
     private NumberFormatter() {
     }
 
     public static String format(BigDecimal amount) {
-        return FORMAT.format(amount);
+        if (amount == null) {
+            return "0,00";
+        }
+        return FORMATTER.get().format(amount);
     }
 }

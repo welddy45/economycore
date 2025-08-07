@@ -7,5 +7,6 @@ public enum TransactionResult {
     RECIPIENT_FROZEN,
     CANNOT_PAY_SELF,
     INVALID_RECIPIENT,
+    CANCELLED_BY_EVENT,
     ERROR
 }

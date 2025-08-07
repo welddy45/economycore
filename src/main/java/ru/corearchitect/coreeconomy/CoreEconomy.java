@@ -4,8 +4,12 @@ import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import ru.corearchitect.coreeconomy.api.EconomyAPI;
+import ru.corearchitect.coreeconomy.command.EconomyAdminCommand;
+import ru.corearchitect.coreeconomy.command.PlayerEconomyCommand;
 import ru.corearchitect.coreeconomy.listener.PlayerConnectionListener;
 import ru.corearchitect.coreeconomy.manager.*;
+
+import java.util.Objects;
 
 public final class CoreEconomy extends JavaPlugin {
 
@@ -14,9 +18,9 @@ public final class CoreEconomy extends JavaPlugin {
     private EconomyManager economyManager;
     private ConfigManager configManager;
     private ScoreboardManager scoreboardManager;
-    private CommandManager commandManager;
     private TransactionLogger transactionLogger;
     private LeaderboardManager leaderboardManager;
+    private BackupManager backupManager;
     private BukkitTask autosaveTask;
 
     @Override
@@ -27,9 +31,9 @@ public final class CoreEconomy extends JavaPlugin {
         this.dataManager = new DataManager(this);
         this.economyManager = new EconomyManager(this);
         this.scoreboardManager = new ScoreboardManager(this);
-        this.commandManager = new CommandManager(this);
         this.transactionLogger = new TransactionLogger(this);
         this.leaderboardManager = new LeaderboardManager(this);
+        this.backupManager = new BackupManager(this);
 
         registerAPI();
         registerCommands();
@@ -37,6 +41,7 @@ public final class CoreEconomy extends JavaPlugin {
 
         this.scoreboardManager.startUpdateTask();
         this.leaderboardManager.startUpdateTask();
+        this.backupManager.start();
         startAutosaveTask();
     }
 
@@ -48,11 +53,14 @@ public final class CoreEconomy extends JavaPlugin {
         if (this.leaderboardManager != null) {
             this.leaderboardManager.cancelUpdateTask();
         }
+        if (this.backupManager != null) {
+            this.backupManager.stop();
+        }
         if (this.autosaveTask != null) {
             this.autosaveTask.cancel();
         }
         if (this.dataManager != null) {
-            this.dataManager.saveDataBlocking();
+            this.dataManager.shutdown();
         }
         if (this.transactionLogger != null) {
             this.transactionLogger.close();
@@ -64,8 +72,14 @@ public final class CoreEconomy extends JavaPlugin {
     }
 
     private void registerCommands() {
-        this.commandManager.registerPlayerCommand();
-        this.commandManager.registerAdminCommand();
+        PlayerEconomyCommand playerCommand = new PlayerEconomyCommand(this);
+        EconomyAdminCommand adminCommand = new EconomyAdminCommand(this);
+
+        Objects.requireNonNull(getCommand(configManager.getPlayerCommandName())).setExecutor(playerCommand);
+        Objects.requireNonNull(getCommand(configManager.getPlayerCommandName())).setTabCompleter(playerCommand);
+
+        Objects.requireNonNull(getCommand(configManager.getAdminCommandName())).setExecutor(adminCommand);
+        Objects.requireNonNull(getCommand(configManager.getAdminCommandName())).setTabCompleter(adminCommand);
     }
 
     private void registerListeners() {
@@ -73,8 +87,11 @@ public final class CoreEconomy extends JavaPlugin {
     }
 
     private void startAutosaveTask() {
+        if (!configManager.getStorageType().equalsIgnoreCase("YAML")) {
+            return;
+        }
         long interval = configManager.getAutosaveInterval() * 20L * 60L;
-        this.autosaveTask = getServer().getScheduler().runTaskTimerAsynchronously(this, this.dataManager::saveDataAsync, interval, interval);
+        this.autosaveTask = getServer().getScheduler().runTaskTimerAsynchronously(this, this.dataManager::saveAllData, interval, interval);
     }
 
     public static CoreEconomy getInstance() {

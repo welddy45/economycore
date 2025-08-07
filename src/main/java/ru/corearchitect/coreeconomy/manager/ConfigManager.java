@@ -89,16 +89,8 @@ public class ConfigManager {
         return mainConfig.getString("player-command.name", "eco");
     }
 
-    public List<String> getPlayerCommandAliases() {
-        return mainConfig.getStringList("player-command.aliases");
-    }
-
     public String getAdminCommandName() {
         return mainConfig.getString("admin-command.name", "ecoadmin");
-    }
-
-    public List<String> getAdminCommandAliases() {
-        return mainConfig.getStringList("admin-command.aliases");
     }
 
     public int getLeaderboardUpdateInterval() {
@@ -110,7 +102,7 @@ public class ConfigManager {
     }
 
     public int getAutosaveInterval() {
-        return mainConfig.getInt("data-storage.autosave-interval-minutes", 10);
+        return mainConfig.getInt("data-storage.autosave-interval-minutes", 5);
     }
 
     public boolean isScoreboardEnabledByDefault() {
@@ -119,5 +111,29 @@ public class ConfigManager {
 
     public double getCommissionPercentage() {
         return mainConfig.getDouble("commission.percentage", 0.0);
+    }
+
+    public String getStorageType() {
+        return mainConfig.getString("data-storage.type", "SQLITE");
+    }
+
+    public String getSQLiteFilename() {
+        return mainConfig.getString("data-storage.sqlite.filename", "database.db");
+    }
+
+    public boolean isBackupEnabled() {
+        return mainConfig.getBoolean("backups.enabled", true);
+    }
+
+    public int getBackupIntervalHours() {
+        return mainConfig.getInt("backups.interval-hours", 24);
+    }
+
+    public int getMaxBackupFiles() {
+        return mainConfig.getInt("backups.max-files", 7);
+    }
+
+    public int getHistoryEntriesPerPage() {
+        return mainConfig.getInt("history.entries-per-page", 10);
     }
 }

@@ -1,9 +1,15 @@
 package ru.corearchitect.coreeconomy.command;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 import ru.corearchitect.coreeconomy.CoreEconomy;
@@ -21,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class PlayerEconomyCommand extends Command {
+public class PlayerEconomyCommand implements CommandExecutor, TabCompleter {
 
     private final CoreEconomy plugin;
     private final EconomyManager economyManager;
@@ -29,20 +35,16 @@ public class PlayerEconomyCommand extends Command {
     private final LeaderboardManager leaderboardManager;
 
     public PlayerEconomyCommand(CoreEconomy plugin) {
-        super(plugin.getConfigManager().getPlayerCommandName());
         this.plugin = plugin;
         this.economyManager = plugin.getEconomyManager();
         this.configManager = plugin.getConfigManager();
         this.leaderboardManager = plugin.getLeaderboardManager();
-
-        this.setAliases(plugin.getConfigManager().getPlayerCommandAliases());
-        this.setDescription("Player economy commands.");
     }
 
     @Override
-    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", commandLabel));
+            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", label));
             return true;
         }
 
@@ -51,10 +53,10 @@ public class PlayerEconomyCommand extends Command {
         switch (subCommand) {
             case "balance":
             case "bal":
-                handleBalance(sender, args);
+                handleBalance(sender, args, label);
                 break;
             case "pay":
-                handlePay(sender, args);
+                handlePay(sender, args, label);
                 break;
             case "balancetop":
             case "baltop":
@@ -65,13 +67,13 @@ public class PlayerEconomyCommand extends Command {
                 handleScoreboardToggle(sender);
                 break;
             default:
-                sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", commandLabel));
+                sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", label));
                 break;
         }
         return true;
     }
 
-    private void handleBalance(CommandSender sender, String[] args) {
+    private void handleBalance(CommandSender sender, String[] args, String commandLabel) {
         if (!sender.hasPermission("coreeconomy.command.balance")) {
             sender.sendMessage(configManager.getPrefixedMessage("no-permission"));
             return;
@@ -79,7 +81,7 @@ public class PlayerEconomyCommand extends Command {
 
         if (args.length == 1) {
             if (!(sender instanceof Player)) {
-                sender.sendMessage("This command can only be run by a player.");
+                sender.sendMessage(configManager.getPrefixedMessage("command.player-only"));
                 return;
             }
             Player player = (Player) sender;
@@ -105,13 +107,13 @@ public class PlayerEconomyCommand extends Command {
                 });
             });
         } else {
-            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", this.getName()));
+            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", commandLabel));
         }
     }
 
-    private void handlePay(CommandSender sender, String[] args) {
+    private void handlePay(CommandSender sender, String[] args, String commandLabel) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("This command can only be run by a player.");
+            sender.sendMessage(configManager.getPrefixedMessage("command.player-only"));
             return;
         }
         if (!sender.hasPermission("coreeconomy.command.pay")) {
@@ -119,7 +121,7 @@ public class PlayerEconomyCommand extends Command {
             return;
         }
         if (args.length != 3) {
-            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", this.getName()));
+            sender.sendMessage(configManager.getPrefixedMessage("command.player-usage").replace("{command}", commandLabel));
             return;
         }
 
@@ -150,7 +152,6 @@ public class PlayerEconomyCommand extends Command {
         String formattedAmount = NumberFormatter.format(amount);
         switch (result) {
             case SUCCESS:
-                double commissionPercentage = configManager.getCommissionPercentage();
                 sender.sendMessage(configManager.getPrefixedMessage("payment-sent")
                         .replace("{amount}", formattedAmount)
                         .replace("{recipient}", recipient.getName())
@@ -172,6 +173,9 @@ public class PlayerEconomyCommand extends Command {
                 break;
             case CANNOT_PAY_SELF:
                 sender.sendMessage(configManager.getPrefixedMessage("cannot-pay-self"));
+                break;
+            case CANCELLED_BY_EVENT:
+                sender.sendMessage(configManager.getPrefixedMessage("transaction-cancelled"));
                 break;
         }
     }
@@ -195,11 +199,13 @@ public class PlayerEconomyCommand extends Command {
         AtomicInteger rank = new AtomicInteger(1);
         topPlayers.forEach(entry -> {
             String formattedBalance = NumberFormatter.format(entry.getBalance());
-            String message = configManager.getMessage("balancetop-entry")
-                    .replace("{rank}", String.valueOf(rank.getAndIncrement()))
-                    .replace("{player}", entry.getName())
-                    .replace("{balance}", formattedBalance)
-                    .replace("{symbol}", configManager.getCurrencySymbol());
+            TextComponent message = Component.text(configManager.getMessage("balancetop-entry")
+                            .replace("{rank}", String.valueOf(rank.getAndIncrement()))
+                            .replace("{player}", entry.getName())
+                            .replace("{balance}", formattedBalance)
+                            .replace("{symbol}", configManager.getCurrencySymbol()))
+                    .hoverEvent(HoverEvent.showText(Component.text("Нажмите, чтобы посмотреть баланс")))
+                    .clickEvent(ClickEvent.runCommand("/edu balance " + entry.getName()));
             sender.sendMessage(message);
         });
 
@@ -208,7 +214,7 @@ public class PlayerEconomyCommand extends Command {
 
     private void handleScoreboardToggle(CommandSender sender) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("This command can only be run by a player.");
+            sender.sendMessage(configManager.getPrefixedMessage("command.player-only"));
             return;
         }
         if (!sender.hasPermission("coreeconomy.command.scoreboardtoggle")) {
@@ -219,7 +225,7 @@ public class PlayerEconomyCommand extends Command {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return StringUtil.copyPartialMatches(args[0],
                     Arrays.asList("balance", "pay", "baltop", "sbtoggle"),

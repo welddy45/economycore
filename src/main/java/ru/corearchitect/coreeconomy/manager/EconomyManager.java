@@ -3,7 +3,11 @@ package ru.corearchitect.coreeconomy.manager;
 import org.bukkit.Bukkit;
 import ru.corearchitect.coreeconomy.CoreEconomy;
 import ru.corearchitect.coreeconomy.api.EconomyAPI;
+import ru.corearchitect.coreeconomy.event.PostTransactionEvent;
+import ru.corearchitect.coreeconomy.event.PreTransactionEvent;
+import ru.corearchitect.coreeconomy.model.TransactionRecord;
 import ru.corearchitect.coreeconomy.model.TransactionResult;
+import ru.corearchitect.coreeconomy.model.TransactionType;
 import ru.corearchitect.coreeconomy.util.NumberFormatter;
 
 import java.math.BigDecimal;
@@ -34,41 +38,35 @@ public class EconomyManager implements EconomyAPI {
     @Override
     public CompletableFuture<Boolean> withdraw(UUID playerUUID, BigDecimal amount) {
         return CompletableFuture.supplyAsync(() -> {
-            synchronized (dataManager) {
-                if (amount.compareTo(BigDecimal.ZERO) < 0) {
-                    return false;
-                }
-                BigDecimal currentBalance = dataManager.getBalance(playerUUID);
-                if (currentBalance.compareTo(amount) >= 0) {
-                    dataManager.setBalance(playerUUID, currentBalance.subtract(amount));
-                    return true;
-                }
+            if (amount.compareTo(BigDecimal.ZERO) < 0) {
                 return false;
             }
+            BigDecimal currentBalance = dataManager.getBalance(playerUUID);
+            if (currentBalance.compareTo(amount) >= 0) {
+                dataManager.setBalance(playerUUID, currentBalance.subtract(amount));
+                return true;
+            }
+            return false;
         });
     }
 
     @Override
     public CompletableFuture<Boolean> deposit(UUID playerUUID, BigDecimal amount) {
         return CompletableFuture.supplyAsync(() -> {
-            synchronized (dataManager) {
-                if (amount.compareTo(BigDecimal.ZERO) < 0) {
-                    return false;
-                }
-                BigDecimal currentBalance = dataManager.getBalance(playerUUID);
-                dataManager.setBalance(playerUUID, currentBalance.add(amount));
-                return true;
+            if (amount.compareTo(BigDecimal.ZERO) < 0) {
+                return false;
             }
+            BigDecimal currentBalance = dataManager.getBalance(playerUUID);
+            dataManager.setBalance(playerUUID, currentBalance.add(amount));
+            return true;
         });
     }
 
     @Override
     public CompletableFuture<Void> setBalance(UUID playerUUID, BigDecimal amount) {
         return CompletableFuture.runAsync(() -> {
-            synchronized (dataManager) {
-                if (amount.compareTo(BigDecimal.ZERO) >= 0) {
-                    dataManager.setBalance(playerUUID, amount);
-                }
+            if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                dataManager.setBalance(playerUUID, amount);
             }
         });
     }
@@ -106,29 +104,49 @@ public class EconomyManager implements EconomyAPI {
     @Override
     public CompletableFuture<TransactionResult> transfer(UUID from, UUID to, BigDecimal amount) {
         return CompletableFuture.supplyAsync(() -> {
-            synchronized(dataManager) {
-                if (from.equals(to)) return TransactionResult.CANNOT_PAY_SELF;
-                if (dataManager.isFrozen(from)) return TransactionResult.SENDER_FROZEN;
-                if (dataManager.isFrozen(to)) return TransactionResult.RECIPIENT_FROZEN;
-
-                double commissionPercentage = plugin.getConfigManager().getCommissionPercentage();
-                BigDecimal commissionAmount = amount.multiply(BigDecimal.valueOf(commissionPercentage / 100.0)).setScale(2, RoundingMode.HALF_UP);
-                BigDecimal totalCost = amount.add(commissionAmount);
-                BigDecimal senderBalance = dataManager.getBalance(from);
-
-                if (senderBalance.compareTo(totalCost) < 0) {
-                    return TransactionResult.INSUFFICIENT_FUNDS;
-                }
-
-                dataManager.setBalance(from, senderBalance.subtract(totalCost));
-                BigDecimal recipientBalance = dataManager.getBalance(to);
-                dataManager.setBalance(to, recipientBalance.add(amount));
-                addCommission(commissionAmount);
-
-                logTransaction(from, to, amount, commissionAmount, totalCost);
-
-                return TransactionResult.SUCCESS;
+            PreTransactionEvent preEvent = new PreTransactionEvent(from, to, amount);
+            Bukkit.getPluginManager().callEvent(preEvent);
+            if (preEvent.isCancelled()) {
+                return TransactionResult.CANCELLED_BY_EVENT;
             }
+
+            if (from.equals(to)) return TransactionResult.CANNOT_PAY_SELF;
+            if (dataManager.isFrozen(from)) return TransactionResult.SENDER_FROZEN;
+            if (dataManager.isFrozen(to)) return TransactionResult.RECIPIENT_FROZEN;
+
+            double commissionPercentage = plugin.getConfigManager().getCommissionPercentage();
+            BigDecimal commissionAmount = amount.multiply(BigDecimal.valueOf(commissionPercentage / 100.0)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalCost = amount.add(commissionAmount);
+            BigDecimal senderBalance = dataManager.getBalance(from);
+
+            if (senderBalance.compareTo(totalCost) < 0) {
+                return TransactionResult.INSUFFICIENT_FUNDS;
+            }
+
+            dataManager.setBalance(from, senderBalance.subtract(totalCost));
+            BigDecimal recipientBalance = dataManager.getBalance(to);
+            dataManager.setBalance(to, recipientBalance.add(amount));
+            addCommission(commissionAmount);
+
+            String fromName = Bukkit.getOfflinePlayer(from).getName();
+            String toName = Bukkit.getOfflinePlayer(to).getName();
+
+            logTransaction(fromName, toName, amount, commissionAmount, totalCost);
+
+            dataManager.logTransaction(
+                    new TransactionRecord(
+                            fromName,
+                            toName,
+                            TransactionType.PAY,
+                            amount,
+                            commissionAmount
+                    )
+            );
+
+            PostTransactionEvent postEvent = new PostTransactionEvent(from, to, amount, commissionAmount, TransactionResult.SUCCESS);
+            Bukkit.getPluginManager().callEvent(postEvent);
+
+            return TransactionResult.SUCCESS;
         });
     }
 
@@ -136,10 +154,7 @@ public class EconomyManager implements EconomyAPI {
         dataManager.addCommission(amount);
     }
 
-    private void logTransaction(UUID from, UUID to, BigDecimal amount, BigDecimal commission, BigDecimal total) {
-        String fromName = Bukkit.getOfflinePlayer(from).getName();
-        String toName = Bukkit.getOfflinePlayer(to).getName();
-
+    private void logTransaction(String fromName, String toName, BigDecimal amount, BigDecimal commission, BigDecimal total) {
         plugin.getTransactionLogger().log(String.format("[PAY] %s -> %s | Amount: %s | Commission: %s | Total: %s",
                 fromName, toName, format(amount), format(commission), format(total)));
     }

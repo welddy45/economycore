@@ -6,7 +6,7 @@
 
     <groupId>ru.corearchitect</groupId>
     <artifactId>coreeconomy</artifactId>
-    <version>1.4.0</version>
+    <version>2.1.0</version>
     <packaging>jar</packaging>
 
     <name>CoreEconomy</name>
@@ -62,6 +62,12 @@
             <artifactId>paper-api</artifactId>
             <version>1.20.1-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.41.2.2</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>

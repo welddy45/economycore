@@ -1,10 +1,21 @@
 name: CoreEconomy
-version: 1.6.0
+version: ${project.version}
 main: ru.corearchitect.coreeconomy.CoreEconomy
 api-version: '1.20'
 author: CoreArchitect
 description: Core economy plugin for high-load servers with API and logging.
 load: STARTUP
+
+commands:
+  edu:
+    description: Player economy commands.
+    aliases: [ money ]
+  eduadmin:
+    description: Admin economy commands.
+    aliases: [ eduadm ]
+    permission: coreeconomy.command.admin
+    permission-message: You do not have permission to use this command.
+
 permissions:
   coreeconomy.command.balance:
     description: Allows usage of the /eco balance command.
